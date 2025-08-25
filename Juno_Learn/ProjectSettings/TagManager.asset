@@ -7,7 +7,6 @@ TagManager:
   - CinemachineTarget
   - Enemies
   - Interactable
-  - Indoor
   layers:
   - Default
   - TransparentFX
@@ -17,7 +16,7 @@ TagManager:
   - UI
   - Weapon
   - Obstacle
-  - 
+  - Enemies
   - 
   - 
   - 
