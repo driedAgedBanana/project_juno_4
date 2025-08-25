@@ -140,6 +140,7 @@ public class PlayerController : MonoBehaviour
     {
         if (isAlive)
         {
+            HandleLook();
             HandleMovement();
         }
     }
@@ -148,7 +149,6 @@ public class PlayerController : MonoBehaviour
     {
         if (isAlive)
         {
-            HandleLook();
         }
     }
 

@@ -7,7 +7,6 @@ public class EnemyMovement : MonoBehaviour
 {
     public enum EnemyState
     {
-        Idle,
         Patrol,
         Chase,
         Attack,
@@ -16,23 +15,36 @@ public class EnemyMovement : MonoBehaviour
 
     [SerializeField] private EnemyState _currentState;
 
-
+    [Header("Basic setup")]
     public NavMeshAgent agent;
-
-    public Transform centerPoint;
-
-    [SerializeField] private float _walkTimeCount;
-
-    [SerializeField] private bool _isAllowedToWalk;
-
     public float targetSpeed;
 
+    [Header("Line of sight")]
+    public GameObject player;
+    public float visionDegree;
+    public float visionRange;
+
+    [Header("Patrolling")]
     public float patrolSpeed = 5f;
+    public Transform centerPoint;
+    private float _walkTimeCount;
+    private bool _isAllowedToWalk;
+
+    [Header("Chasing")]
+    public float chaseSpeed;
+    public float chaseRange;
+    public float loseSightRange;
+
+    [Header("Attacking")]
+    public float bufferDistance;
+    public float attackRange;
+    public BoxCollider attackCollider;
+    private bool _isPlayerInAttackZone = false;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
+        //agent = GetComponent<NavMeshAgent>();
         _isAllowedToWalk = true;
 
         _currentState = EnemyState.Patrol;
@@ -44,23 +56,52 @@ public class EnemyMovement : MonoBehaviour
         agent.speed = targetSpeed;
         switch (_currentState)
         {
-            case EnemyState.Idle:
-                Debug.Log("Do I even need this?");
-                break;
-
             case EnemyState.Patrol:
                 Patrolling();
+                CheckForPlayer();
                 break;
 
             case EnemyState.Chase:
-                Debug.Log("Chase player");
+                ChasingPlayer();
+                CheckForPlayer();
                 break;
 
             case EnemyState.Attack:
-                Debug.Log("Attack Player");
+                AttackPlayer();
                 break;
         }
     }
+
+    #region Checking for player
+    private void CheckForPlayer()
+    {
+        if(_isPlayerInAttackZone)
+        {
+            Debug.Log("Player is attacking!");
+            _currentState = EnemyState.Attack;
+            return;
+        }
+
+        Vector3 direction = player.transform.position - transform.position;
+
+        float distance = Vector3.Distance(transform.position, player.transform.position);
+        float stopDistance = Vector3.Distance(transform.position, player.transform.position);
+
+        if (Mathf.Abs(Vector3.Angle(transform.forward, direction)) < visionDegree)
+        {
+            if (distance <= chaseRange)
+            {
+                _currentState = EnemyState.Chase;
+            }
+            else if (distance > loseSightRange)
+            {
+                _currentState = EnemyState.Patrol;
+            }
+        }
+    }
+    #endregion
+
+    #region Patrolling
 
     private void Patrolling()
     {
@@ -70,15 +111,15 @@ public class EnemyMovement : MonoBehaviour
             {
                 Vector3 point;
                 targetSpeed = patrolSpeed;
-                float range = Random.Range(3f, 15f);
+                float range = Random.Range(6f, 20f);
                 if (RandomPoint(centerPoint.position, range, out point))
                 {
-                    Debug.Log("Enemy walking range will be " + range);
+                    //Debug.Log("Enemy walking range will be " + range);
                     Debug.DrawRay(point, Vector3.up, Color.blue, 1.0f);
                     agent.SetDestination(point);
                     _walkTimeCount++;
 
-                    if (_walkTimeCount >= 3)
+                    if (_walkTimeCount >= 4)
                     {
                         _isAllowedToWalk = false;
                         StartCoroutine(WaitThenPatrol());
@@ -109,9 +150,9 @@ public class EnemyMovement : MonoBehaviour
 
     private IEnumerator WaitThenPatrol()
     {
-        float waitTime = Random.Range(3f, 15f);
+        float waitTime = Random.Range(3f, 10f);
 
-        Debug.Log("Enemy will be waiting for " + waitTime + " seconds!");
+        //Debug.Log("Enemy will be waiting for " + waitTime + " seconds!");
         yield return new WaitForSeconds(waitTime);
 
         _walkTimeCount = 0f;
@@ -122,4 +163,52 @@ public class EnemyMovement : MonoBehaviour
         }
 
     }
+
+    #endregion
+
+    #region Chasing
+    private void ChasingPlayer()
+    {
+        targetSpeed = chaseSpeed;
+        agent.SetDestination(player.transform.position);
+        transform.LookAt(player.transform.position);
+    }
+    #endregion
+
+    #region Attacking
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.CompareTag("Player"))
+        {
+            _isPlayerInAttackZone = true;
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if(other.CompareTag("Player"))
+        {
+            _isPlayerInAttackZone = false;
+
+            // if player is still within the chase range, go back to chasing
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            if(distance <= chaseRange)
+            {
+                _currentState = EnemyState.Chase;
+            }
+            else
+            {
+                _currentState = EnemyState.Patrol;
+            }
+        }
+    }
+
+
+    private void AttackPlayer()
+    {
+        Debug.Log("Attack Player");
+        agent.ResetPath();
+    }
+
+    #endregion
 }
