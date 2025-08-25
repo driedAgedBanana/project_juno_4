@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -19,13 +19,15 @@ public class EnemyMovement : MonoBehaviour
     public NavMeshAgent agent;
     public float targetSpeed;
 
+    [Header("Chasing")]
+    public Animator enemyAnimator;
+
     [Header("Line of sight")]
     public GameObject player;
     public float visionDegree;
-    public float visionRange;
 
     [Header("Patrolling")]
-    public float patrolSpeed = 5f;
+    //public float patrolSpeed = 5f;
     public Transform centerPoint;
     private float _walkTimeCount;
     private bool _isAllowedToWalk;
@@ -41,12 +43,20 @@ public class EnemyMovement : MonoBehaviour
     public BoxCollider attackCollider;
     private bool _isPlayerInAttackZone = false;
 
+    private void Awake()
+    {
+        agent = GetComponent<NavMeshAgent>();
+        enemyAnimator = GetComponent<Animator>();
+
+        // Disable agent auto-movement, use root motion instead
+        agent.updatePosition = false;
+        agent.updateRotation = false;
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        //agent = GetComponent<NavMeshAgent>();
         _isAllowedToWalk = true;
-
         _currentState = EnemyState.Patrol;
     }
 
@@ -54,6 +64,8 @@ public class EnemyMovement : MonoBehaviour
     void Update()
     {
         agent.speed = targetSpeed;
+        
+
         switch (_currentState)
         {
             case EnemyState.Patrol:
@@ -105,33 +117,51 @@ public class EnemyMovement : MonoBehaviour
 
     private void Patrolling()
     {
-        if (_isAllowedToWalk)
-        {
-            if (agent.remainingDistance <= agent.stoppingDistance)
-            {
-                Vector3 point;
-                targetSpeed = patrolSpeed;
-                float range = Random.Range(6f, 20f);
-                if (RandomPoint(centerPoint.position, range, out point))
-                {
-                    //Debug.Log("Enemy walking range will be " + range);
-                    Debug.DrawRay(point, Vector3.up, Color.blue, 1.0f);
-                    agent.SetDestination(point);
-                    _walkTimeCount++;
+        if (!_isAllowedToWalk) return;
 
-                    if (_walkTimeCount >= 4)
-                    {
-                        _isAllowedToWalk = false;
-                        StartCoroutine(WaitThenPatrol());
-                    }
+        if (!agent.hasPath || agent.remainingDistance <= agent.stoppingDistance)
+        {
+            // Pick a new random destination
+            Vector3 point;
+            float range = Random.Range(6f, 20f);
+            if (RandomPoint(centerPoint.position, range, out point))
+            {
+                agent.SetDestination(point);
+                Debug.DrawRay(point, Vector3.up, Color.blue, 1.0f);
+                _walkTimeCount++;
+
+                if (_walkTimeCount >= 4)
+                {
+                    _isAllowedToWalk = false;
+                    StartCoroutine(WaitThenPatrol());
                 }
             }
         }
 
-        else
+        // Calculate velocity and set animator
+        Vector3 velocity = agent.desiredVelocity;
+        float speed = velocity.magnitude;
+        enemyAnimator.SetFloat("Speed", speed);
+
+        // Smooth rotation toward agent desired velocity
+        if (velocity.sqrMagnitude > 0.01f)
         {
-            return;
+            Quaternion targetRot = Quaternion.LookRotation(velocity.normalized);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
         }
+    }
+
+    private void OnAnimatorMove()
+    {
+        // Apply root motion movement
+        Vector3 rootPos = enemyAnimator.rootPosition;
+        rootPos.y = agent.nextPosition.y; // keep synced with navmesh height
+        transform.position = rootPos;
+
+        transform.rotation = enemyAnimator.rootRotation;
+
+        // Tell agent where we ended up
+        agent.nextPosition = transform.position;
     }
 
     private bool RandomPoint(Vector3 center, float range, out Vector3 result)
