@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.InputSystem.Android;
 
 public class EnemyMovement : MonoBehaviour
 {
@@ -19,23 +20,23 @@ public class EnemyMovement : MonoBehaviour
     public NavMeshAgent agent;
     public float targetSpeed;
 
-    [Header("Chasing")]
-    public Animator enemyAnimator;
-
     [Header("Line of sight")]
     public GameObject player;
     public float visionDegree;
 
     [Header("Patrolling")]
-    //public float patrolSpeed = 5f;
+    public float stopSafeDistance;
+    public int maxWalkCount;
     public Transform centerPoint;
     private float _walkTimeCount;
     private bool _isAllowedToWalk;
 
     [Header("Chasing")]
-    public float chaseSpeed;
+    public Animator enemyAnimator;
     public float chaseRange;
     public float loseSightRange;
+    private bool _isScreaming = false;
+    public float screamDuration = 2f;
 
     [Header("Attacking")]
     public float bufferDistance;
@@ -51,6 +52,8 @@ public class EnemyMovement : MonoBehaviour
         // Disable agent auto-movement, use root motion instead
         agent.updatePosition = false;
         agent.updateRotation = false;
+
+        agent.stoppingDistance = stopSafeDistance;
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -64,7 +67,7 @@ public class EnemyMovement : MonoBehaviour
     void Update()
     {
         agent.speed = targetSpeed;
-        
+
 
         switch (_currentState)
         {
@@ -87,7 +90,7 @@ public class EnemyMovement : MonoBehaviour
     #region Checking for player
     private void CheckForPlayer()
     {
-        if(_isPlayerInAttackZone)
+        if (_isPlayerInAttackZone)
         {
             Debug.Log("Player is attacking!");
             _currentState = EnemyState.Attack;
@@ -103,10 +106,12 @@ public class EnemyMovement : MonoBehaviour
         {
             if (distance <= chaseRange)
             {
+                enemyAnimator.SetBool("isChasingPlayer", true);
                 _currentState = EnemyState.Chase;
             }
             else if (distance > loseSightRange)
             {
+                enemyAnimator.SetBool("isChasingPlayer", false);
                 _currentState = EnemyState.Patrol;
             }
         }
@@ -130,10 +135,10 @@ public class EnemyMovement : MonoBehaviour
                 Debug.DrawRay(point, Vector3.up, Color.blue, 1.0f);
                 _walkTimeCount++;
 
-                if (_walkTimeCount >= 4)
+                if (_walkTimeCount >= maxWalkCount)
                 {
                     _isAllowedToWalk = false;
-                    StartCoroutine(WaitThenPatrol());
+                    StartCoroutine(WaitBeforePatrol());
                 }
             }
         }
@@ -178,11 +183,11 @@ public class EnemyMovement : MonoBehaviour
         return false;
     }
 
-    private IEnumerator WaitThenPatrol()
+    private IEnumerator WaitBeforePatrol()
     {
         float waitTime = Random.Range(3f, 10f);
 
-        //Debug.Log("Enemy will be waiting for " + waitTime + " seconds!");
+        Debug.Log("Enemy will be waiting for " + waitTime + " seconds!");
         yield return new WaitForSeconds(waitTime);
 
         _walkTimeCount = 0f;
@@ -199,16 +204,53 @@ public class EnemyMovement : MonoBehaviour
     #region Chasing
     private void ChasingPlayer()
     {
-        targetSpeed = chaseSpeed;
-        agent.SetDestination(player.transform.position);
-        transform.LookAt(player.transform.position);
+        // Only start scream if we're not already screaming
+        if (!_isScreaming)
+        {
+            StartCoroutine(ScreamThenRunTowardsPlayer());
+            return; // skip chasing this frame
+        }
+        else
+        {
+            // Chasing logic only runs when _isScreaming is false
+            agent.SetDestination(player.transform.position);
+
+            Vector3 velocity = agent.desiredVelocity;
+            float speed = velocity.magnitude;
+            enemyAnimator.SetFloat("chaseSpeed", speed);
+
+            if (velocity.sqrMagnitude > 0.01f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(velocity.normalized);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
+            }
+        }
+
+    }
+
+    private IEnumerator ScreamThenRunTowardsPlayer()
+    {
+        _isScreaming = true;
+
+        // Trigger scream animation and stop movement
+        enemyAnimator.SetFloat("chaseSpeed", 0);
+
+        // Stop NavMesh movement while screaming
+        agent.ResetPath();
+
+        // Wait for the duration of the scream
+        yield return new WaitForSeconds(screamDuration);
+
+        // Resume chasing
+        _isScreaming = false;
     }
     #endregion
+
 
     #region Attacking
     private void OnTriggerEnter(Collider other)
     {
-        if(other.CompareTag("Player"))
+        if (other.CompareTag("Player"))
         {
             _isPlayerInAttackZone = true;
         }
@@ -216,13 +258,13 @@ public class EnemyMovement : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if(other.CompareTag("Player"))
+        if (other.CompareTag("Player"))
         {
             _isPlayerInAttackZone = false;
 
             // if player is still within the chase range, go back to chasing
             float distance = Vector3.Distance(transform.position, player.transform.position);
-            if(distance <= chaseRange)
+            if (distance <= chaseRange)
             {
                 _currentState = EnemyState.Chase;
             }

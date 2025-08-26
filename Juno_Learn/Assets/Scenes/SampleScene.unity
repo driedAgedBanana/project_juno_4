@@ -1866,15 +1866,17 @@ MonoBehaviour:
   _currentState: 0
   agent: {fileID: 745809969}
   targetSpeed: 5
-  enemyAnimator: {fileID: 745809967}
   player: {fileID: 622611848}
   visionDegree: 70
+  stopSafeDistance: 0.7
+  maxWalkCount: 4
   centerPoint: {fileID: 745809966}
-  chaseSpeed: 4
-  chaseRange: 2
-  loseSightRange: 15
-  bufferDistance: 2.5
-  attackRange: 2.5
+  enemyAnimator: {fileID: 745809967}
+  chaseRange: 8
+  loseSightRange: 2.9
+  screamDuration: 643.17
+  bufferDistance: 20
+  attackRange: 20
   attackCollider: {fileID: 302602724}
 --- !u!195 &745809969
 NavMeshAgent:
@@ -1885,7 +1887,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 107018310}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.31
+  m_Radius: 0.19
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -1944,7 +1946,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
+  m_Constraints: 126
   m_CollisionDetection: 1
 --- !u!1 &832575517
 GameObject:
