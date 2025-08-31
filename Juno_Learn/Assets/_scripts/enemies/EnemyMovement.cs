@@ -233,9 +233,10 @@ public class EnemyMovement : MonoBehaviour
         _isScreaming = true;
 
         // Trigger scream animation and stop movement
-        enemyAnimator.SetFloat("chaseSpeed", 0);
+        enemyAnimator.SetTrigger("Screaming");
 
         // Stop NavMesh movement while screaming
+        agent.isStopped = true;
         agent.ResetPath();
 
         // Wait for the duration of the scream
