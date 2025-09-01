@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.InputSystem.Android;
 
 public class EnemyMovement : MonoBehaviour
 {
@@ -27,6 +26,7 @@ public class EnemyMovement : MonoBehaviour
     [Header("Patrolling")]
     public float stopSafeDistance;
     public int maxWalkCount;
+    private int _randomWalkCount;
     public Transform centerPoint;
     private float _walkTimeCount;
     private bool _isAllowedToWalk;
@@ -61,6 +61,8 @@ public class EnemyMovement : MonoBehaviour
     {
         _isAllowedToWalk = true;
         _currentState = EnemyState.Patrol;
+
+        Debug.Log("Enemy will walk for " + maxWalkCount + " times!");
     }
 
     // Update is called once per frame
@@ -135,7 +137,7 @@ public class EnemyMovement : MonoBehaviour
                 Debug.DrawRay(point, Vector3.up, Color.blue, 1.0f);
                 _walkTimeCount++;
 
-                if (_walkTimeCount >= maxWalkCount)
+                if (_walkTimeCount >= _randomWalkCount)
                 {
                     _isAllowedToWalk = false;
                     StartCoroutine(WaitBeforePatrol());
@@ -189,6 +191,11 @@ public class EnemyMovement : MonoBehaviour
 
         Debug.Log("Enemy will be waiting for " + waitTime + " seconds!");
         yield return new WaitForSeconds(waitTime);
+
+        _randomWalkCount = Random.Range(3, 10);
+        maxWalkCount = _randomWalkCount;
+
+        Debug.Log("Enemy will walk for " + _randomWalkCount + " times!");
 
         _walkTimeCount = 0f;
         if (_walkTimeCount <= 0)
