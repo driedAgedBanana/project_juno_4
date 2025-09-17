@@ -1874,7 +1874,7 @@ MonoBehaviour:
   enemyAnimator: {fileID: 745809967}
   chaseRange: 8
   loseSightRange: 2.9
-  screamDuration: 643.17
+  screamDuration: 20
   bufferDistance: 20
   attackRange: 20
   attackCollider: {fileID: 302602724}
